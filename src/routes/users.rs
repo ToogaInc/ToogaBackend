@@ -53,7 +53,6 @@ pub async fn add_association(
     State(state): State<AppState>,
     Json(body): Json<AddUserBody>,
 ) -> ApiResponse {
-    // Step 1: See if the user already exists.
     let AddUserBody { ign, discord_id } = body;
     let user = get_collection(&state)
         .find_one(doc! { "ign_lower": ign.to_lowercase() }, None)
@@ -71,6 +70,48 @@ pub async fn add_association(
             .insert_one(doc_to_insert, None)
             .await?;
         Ok(StatusCode::CREATED.into_response())
+    }
+}
+
+/// Reassociates a Discord ID with the specified IGN. The IGN must be in the
+/// database prior to this call being made.
+///
+/// In other words, changes the Discord ID associated with the IGN to a different
+/// Discord ID.
+///
+/// # Endpoint Type
+/// PUT
+///
+/// # Returns (Status Code)
+/// - Status Code `201` if the IGN was found and reassociation occurs.
+/// - Status Code `404` if the IGN is not found.
+/// - Status Code `500` if something went wrong internally.
+pub async fn update_association(
+    State(state): State<AppState>,
+    Json(body): Json<AddUserBody>,
+) -> ApiResponse {
+    let AddUserBody { ign, discord_id } = body;
+    let user = get_collection(&state)
+        .find_one(doc! { "ign_lower": ign.to_lowercase() }, None)
+        .await?;
+
+    match user {
+        None => Ok(StatusCode::NOT_FOUND.into_response()),
+        Some(_) => {
+            get_collection(&state)
+                .update_one(
+                    doc! {
+                        "ign_lower": ign.to_lowercase()
+                    },
+                    doc! {
+                        "discord_id": discord_id
+                    },
+                    None,
+                )
+                .await?;
+
+            Ok(StatusCode::CREATED.into_response())
+        }
     }
 }
 
