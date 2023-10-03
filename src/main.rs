@@ -2,13 +2,13 @@ use std::net::SocketAddr;
 use std::process::ExitCode;
 use std::str::FromStr;
 
-use crate::api::create_router;
 use crate::config::EnvConfig;
 use crate::state::{AppState, InternalState};
 use dotenv::dotenv;
+use router::create_router;
 
-mod api;
 mod config;
+mod router;
 mod state;
 
 #[tokio::main]
@@ -20,7 +20,7 @@ async fn main() -> anyhow::Result<ExitCode> {
         format!("{}:{}", config.api_address.as_str(), config.api_port).as_str(),
     );
 
-    let state = AppState::new(InternalState::new(config));
+    let state = AppState::new(InternalState::init(config).await?);
 
     axum::Server::bind(&addr.unwrap())
         .serve(create_router(state).into_make_service())

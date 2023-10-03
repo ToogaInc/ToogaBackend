@@ -3,6 +3,7 @@ use std::env;
 pub struct EnvConfig {
     pub api_address: String,
     pub api_port: usize,
+    pub mongo_uri: String,
 }
 
 impl EnvConfig {
@@ -19,6 +20,8 @@ impl EnvConfig {
                 .expect("You need an environmental variable for `API_PORT`")
                 .parse()
                 .expect("The port specified for `API_PORT` is not a valid unsigned integer."),
+            mongo_uri: env::var("MONGO_CONN_URI")
+                .expect("You need an environmental variable for `MONGO_CONN_URI`"),
         }
     }
 }

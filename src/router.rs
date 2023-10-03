@@ -1,5 +1,6 @@
-use crate::state::AppState;
 use axum::Router;
+
+use crate::state::AppState;
 
 /// Creates a router that can be consumed by `axum`.
 ///
