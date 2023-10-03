@@ -10,6 +10,9 @@ use router::create_router;
 mod config;
 mod router;
 mod state;
+mod endpoints;
+mod middleware;
+mod utils;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<ExitCode> {
