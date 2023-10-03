@@ -8,10 +8,12 @@ use dotenv::dotenv;
 use router::create_router;
 
 mod config;
-mod router;
-mod state;
 mod endpoints;
 mod middleware;
+pub mod models;
+mod router;
+mod state;
+pub mod types;
 mod utils;
 
 #[tokio::main]

@@ -1,0 +1,46 @@
+USER_ID_NAME
+- discordId         string 
+- ign               string
+- ignLower          string  [unique] 
+
+ROLES
+- guildId           string 
+- sectionId         string
+- roleId            string 
+- rolePurpose       string 
+
+CHANNEL
+- guildId           string 
+- sectionId         string
+- channelId         string 
+- channelPurpose    string 
+
+QUOTA_CONFIG
+- guildId           string 
+- roleId            string 
+- minPointsNeeded   integer 
+- resetTime         integer
+
+QUOTA_RULES 
+- REF QUOTA_CONFIG
+- ruleName          string 
+- pointValue        integer
+
+LOGGED_QUOTAS
+- REF QUOTA_CONFIG
+- userId            string 
+- loggedRule        string 
+- amountLogged      integer 
+- timeLogged        integer 
+
+PUNISHMENTS
+- guildId           string 
+- sectionId         string 
+- affectedUser      { id: string, tag: string, name: string }
+- moderator         { id: string, tag: string, name: string }
+- moderationType    string [Suspend | Blacklist | Mute | Warn]
+- reason            string 
+- punishmentId      string [uuid]
+- issuedAt          integer [timestamp]
+- duration          integer [milliseconds]
+- resolved          boolean 
