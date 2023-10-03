@@ -5,13 +5,12 @@ use std::str::FromStr;
 use crate::config::EnvConfig;
 use crate::state::{AppState, InternalState};
 use dotenv::dotenv;
-use router::create_router;
+use routes::create_router;
 
 mod config;
-mod endpoints;
 mod middleware;
 pub mod models;
-mod router;
+mod routes;
 mod state;
 pub mod types;
 mod utils;
