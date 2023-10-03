@@ -7,9 +7,16 @@ use axum::{
 use futures::TryStreamExt;
 use mongodb::{bson::doc, Collection};
 
-use crate::{models::users::User, state::AppState, types::internals::ApiResponse};
+use crate::{
+    models::users::User,
+    state::AppState,
+    types::{body_types::AddUserBody, internals::ApiResponse},
+};
 
 /// Gets all IGNs by a specified Discord ID.
+///
+/// # Endpoint Type
+/// GET
 ///
 /// # Returns (Status Code)
 /// - Status Code `200` if the query to the database is successful, regardless of
@@ -20,7 +27,7 @@ pub async fn get_all_igns_by_id(
     State(state): State<AppState>,
 ) -> ApiResponse {
     let mut cursor = get_collection(&state)
-        .find(doc! { "ign_lower": discord_id.to_lowercase() }, None)
+        .find(doc! { "discordId": discord_id }, None)
         .await?;
 
     let mut all_names = vec![];
@@ -29,6 +36,42 @@ pub async fn get_all_igns_by_id(
     }
 
     Ok((StatusCode::OK, Json(all_names)).into_response())
+}
+
+/// Associates a Discord ID with the specified IGN. Regardless of whether
+/// the Discord ID exists or not prior to this call, this should not error.
+///
+/// # Endpoint Type
+/// POST/PUT
+///
+/// # Returns (Status Code)
+/// - Status Code `201` if the query creates a new association.
+/// - Status Code `303` if the exact IGN and Discord ID is in the database.
+/// - Status Code `409` if the IGN is associated with a different Discord ID.
+/// - Status Code `500` if something went wrong internally.
+pub async fn add_association(
+    State(state): State<AppState>,
+    Json(body): Json<AddUserBody>,
+) -> ApiResponse {
+    // Step 1: See if the user already exists.
+    let AddUserBody { ign, discord_id } = body;
+    let user = get_collection(&state)
+        .find_one(doc! { "ign_lower": ign.to_lowercase() }, None)
+        .await?;
+
+    if let Some(u) = user {
+        if u.discord_id == discord_id {
+            Ok(StatusCode::SEE_OTHER.into_response())
+        } else {
+            Ok(StatusCode::CONFLICT.into_response())
+        }
+    } else {
+        let doc_to_insert = User::new(discord_id, ign);
+        get_collection(&state)
+            .insert_one(doc_to_insert, None)
+            .await?;
+        Ok(StatusCode::CREATED.into_response())
+    }
 }
 
 fn get_collection(state: &AppState) -> Collection<User> {
