@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
@@ -10,7 +10,7 @@ use mongodb::{bson::doc, Collection};
 use crate::{
     models::users::User,
     state::AppState,
-    types::{body_types::AddUserBody, internals::ApiResponse},
+    types::{body_types::AddUserBody, internals::ApiResponse, query_types::IgnQuery},
 };
 
 /// Gets all IGNs by a specified Discord ID.
@@ -42,7 +42,7 @@ pub async fn get_all_igns_by_id(
 /// the Discord ID exists or not prior to this call, this should not error.
 ///
 /// # Endpoint Type
-/// POST/PUT
+/// POST
 ///
 /// # Returns (Status Code)
 /// - Status Code `201` if the query creates a new association.
@@ -55,7 +55,7 @@ pub async fn add_association(
 ) -> ApiResponse {
     let AddUserBody { ign, discord_id } = body;
     let user = get_collection(&state)
-        .find_one(doc! { "ign_lower": ign.to_lowercase() }, None)
+        .find_one(doc! { "ignLower": ign.to_lowercase() }, None)
         .await?;
 
     if let Some(u) = user {
@@ -83,16 +83,17 @@ pub async fn add_association(
 /// PUT
 ///
 /// # Returns (Status Code)
-/// - Status Code `201` if the IGN was found and reassociation occurs.
+/// - Status Code `204` if the IGN was found and reassociation occurs.
 /// - Status Code `404` if the IGN is not found.
 /// - Status Code `500` if something went wrong internally.
 pub async fn update_association(
     State(state): State<AppState>,
-    Json(body): Json<AddUserBody>,
+    Path(discord_id): Path<String>,
+    Query(query): Query<IgnQuery>,
 ) -> ApiResponse {
-    let AddUserBody { ign, discord_id } = body;
+    let ign = query.ign;
     let user = get_collection(&state)
-        .find_one(doc! { "ign_lower": ign.to_lowercase() }, None)
+        .find_one(doc! { "ignLower": ign.to_lowercase() }, None)
         .await?;
 
     match user {
@@ -101,18 +102,84 @@ pub async fn update_association(
             get_collection(&state)
                 .update_one(
                     doc! {
-                        "ign_lower": ign.to_lowercase()
+                        "ignLower": ign.to_lowercase()
                     },
                     doc! {
-                        "discord_id": discord_id
+                        "discordId": discord_id
                     },
                     None,
                 )
                 .await?;
 
-            Ok(StatusCode::CREATED.into_response())
+            Ok(StatusCode::NO_CONTENT.into_response())
         }
     }
+}
+
+/// Unassociates the specified IGN from the Discord ID.
+///
+/// # Endpoint Type
+/// DELETE
+///
+/// # Returns (Status Code)
+/// - Status Code `204` if the IGN was found, is associated with the specified
+///   Discord ID, and is now unassociated.
+/// - Status Code `404` if the IGN or Discord ID pair is not found.
+/// - Status Code `500` if something went wrong internally.
+pub async fn delete_ign_from_discord_id(
+    State(state): State<AppState>,
+    Path(discord_id): Path<String>,
+    Query(query): Query<IgnQuery>,
+) -> ApiResponse {
+    let ign = query.ign;
+    let user = get_collection(&state)
+        .find_one(
+            doc! { "ignLower": ign.to_lowercase(), "discordId": &discord_id },
+            None,
+        )
+        .await?;
+
+    match user {
+        None => Ok(StatusCode::NOT_FOUND.into_response()),
+        Some(_) => {
+            get_collection(&state)
+                .delete_one(
+                    doc! {
+                        "ignLower": ign.to_lowercase(),
+                        "discordId": discord_id
+                    },
+                    None,
+                )
+                .await?;
+
+            Ok(StatusCode::NO_CONTENT.into_response())
+        }
+    }
+}
+
+/// Unassociates all IGNs from the Discord ID.
+///
+/// # Endpoint Type
+/// DELETE
+///
+/// # Returns (Status Code)
+/// - Status Code `204` if the call was successful.
+/// - Status Code `404` if the IGN or Discord ID pair is not found.
+/// - Status Code `500` if something went wrong internally.
+pub async fn delete_all_ign_from_discord_id(
+    State(state): State<AppState>,
+    Path(discord_id): Path<String>,
+) -> ApiResponse {
+    get_collection(&state)
+        .delete_many(
+            doc! {
+                "discordId": discord_id
+            },
+            None,
+        )
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 fn get_collection(state: &AppState) -> Collection<User> {
